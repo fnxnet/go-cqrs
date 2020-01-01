@@ -35,7 +35,7 @@ type EventMiddleware interface {
 }
 
 type EventBus interface {
-    Emit(events []Event)
+    Emit(events ... Event)
     Register(handler EventHandler, events ... Event)
     AddMiddleware(middleware EventMiddleware)
 }
@@ -49,7 +49,7 @@ func (bus *eventBus) AddMiddleware(middleware EventMiddleware) {
     bus.middleware = append(bus.middleware, middleware)
 }
 
-func (bus *eventBus) Emit(events []Event) {
+func (bus *eventBus) Emit(events ... Event) {
     for _, event := range events {
         var errors []error
         name := extractName(event)
@@ -66,8 +66,6 @@ func (bus *eventBus) Emit(events []Event) {
                     errors = append(errors, err)
                 }
             }
-        } else {
-            errors = append(errors, NewUnsupportedEvent(event))
         }
 
         fmt.Println(errors)

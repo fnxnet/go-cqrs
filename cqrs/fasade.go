@@ -20,9 +20,9 @@ func (f facade) EventBus() EventBus {
     return f.eventBus
 }
 
-func NewFacade(config FacaceConfig) (f *facade) {
+func NewFacade(config FacaceConfig) (f facade) {
     eventBus := NewEventBus()
-    f = &facade{
+    f = facade{
         eventBus,
         NewCommandBus(eventBus),
     }
