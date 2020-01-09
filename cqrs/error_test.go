@@ -1,15 +1,14 @@
 package cqrs
 
 import (
-    "testing"
+	"testing"
 
-    "github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewUnsupportedCommand(t *testing.T) {
-    e := NewUnsupportedCommand(dummyCommand{})
-    assert.NotNil(t, e)
-    assert.IsType(t, (*UnsupportedCommand)(nil), &e)
-    assert.Equal(t, "cqrs.error.unsupportedCommand", e.Error())
+	e := NewUnsupportedItem(dummyItem{})
+	assert.NotNil(t, e)
+	assert.IsType(t, (*UnsupportedItem)(nil), &e)
+	assert.Equal(t, "cqrs.error.unsupportedItem", e.Error())
 }
-
