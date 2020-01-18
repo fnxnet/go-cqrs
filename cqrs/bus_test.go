@@ -83,10 +83,12 @@ func (d *dummyRegistry) DummyCommandProvider() Provider {
 
 type dummyMiddleware struct {
 	called int
+	item   interface{}
 }
 
 func (d *dummyMiddleware) Process(i interface{}) interface{} {
 	d.called++
+	d.item = i
 	return i
 }
 
@@ -183,6 +185,29 @@ func TestCommandBus_HandleUnsupportedCommand(t *testing.T) {
 	assert.NotNil(t, e)
 }
 
+func TestCommandBus_HandleNilValue(t *testing.T) {
+	m := &dummyMiddleware{}
+	h := &dummyHandler{}
+	bus := NewBus().(*bus)
+	pCall := 0
+	bus.Add(&Definition{
+		Name: "cqrs.dummyItem",
+		Provider: func() Handler {
+			pCall++
+			return h
+		},
+	})
+	bus.AddMiddleware(m)
+
+	assert.Len(t, bus.middleware, 1)
+	assert.Len(t, bus.handlers, 1)
+	assert.Equal(t, 0, m.called)
+
+	assert.Empty(t, bus.Handle(nil))
+	assert.Equal(t, 0, h.Called)
+	assert.Equal(t, 0, m.called)
+}
+
 func TestCommandBus_HandleSupportedCommand(t *testing.T) {
 	m := &dummyMiddleware{}
 	h := &dummyHandler{}
@@ -215,6 +240,25 @@ func TestCommandBus_HandleSupportedCommand(t *testing.T) {
 	assert.Equal(t, 1, pCall)
 	assert.Equal(t, 2, h.Called)
 	assert.Equal(t, 2, m.called)
+
+	// handle slice
+	assert.Nil(t, bus.Handle(item, item))
+	assert.Equal(t, 1, pCall)
+	assert.Equal(t, 4, h.Called)
+	assert.Equal(t, 4, m.called)
+
+	// handle array - should ignore this
+	items := append(make([]interface{}, 0), item, item)
+	assert.Nil(t, bus.Handle(items))
+	assert.Equal(t, 1, pCall)
+	assert.Equal(t, 4, h.Called)
+	assert.Equal(t, 4, m.called)
+
+	// handle variadic slice - should handle
+	assert.Nil(t, bus.Handle(items[:]...))
+	assert.Equal(t, 1, pCall)
+	assert.Equal(t, 6, h.Called)
+	assert.Equal(t, 6, m.called)
 }
 
 func TestCommandBus_HandleSupportedCommandWithError(t *testing.T) {

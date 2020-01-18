@@ -20,7 +20,7 @@ type Definition struct {
 }
 
 type Bus interface {
-	Handle(i interface{}) (err error)
+	Handle(i ...interface{}) (err []error)
 	AddHandler(i interface{}, h Handler)
 	AddProvider(i interface{}, p Provider)
 	AddRegistry(interface{})
@@ -41,7 +41,15 @@ func (bus *bus) AddMiddleware(m Middleware) {
 	bus.middleware = append(bus.middleware, m)
 }
 
-func (bus *bus) Handle(i interface{}) (err error) {
+func (bus *bus) handleItem(i interface{}) (err error) {
+	if i == nil {
+		return
+	}
+
+	if kind := reflect.TypeOf(i).Kind(); kind != reflect.Struct && kind != reflect.Ptr {
+		return
+	}
+
 	name := extractName(i)
 
 	for _, middle := range bus.middleware {
@@ -62,6 +70,15 @@ func (bus *bus) Handle(i interface{}) (err error) {
 	}
 
 	return NewUnsupportedItem(i)
+}
+
+func (bus *bus) Handle(i ...interface{}) (err []error) {
+	for _, item := range i {
+		if e := bus.handleItem(item); e != nil {
+			err = append(err, e)
+		}
+	}
+	return
 }
 
 func (bus *bus) AddProvider(i interface{}, p Provider) {
