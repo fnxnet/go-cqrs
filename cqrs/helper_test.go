@@ -1,9 +1,10 @@
 package cqrs
 
 import (
+	"testing"
+
 	"github.com/fnxnet/go-cqrs/cqrs/dummy"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 type testCommand struct{}

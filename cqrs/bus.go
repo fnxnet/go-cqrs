@@ -33,7 +33,7 @@ type Middleware interface {
 }
 
 type bus struct {
-	handlers   map[string]*Definition
+	handlers   map[string][]*Definition
 	middleware []Middleware
 }
 
@@ -56,15 +56,17 @@ func (bus *bus) handleItem(i interface{}) (err error) {
 		i = middle.Process(i)
 	}
 
-	if def, ok := bus.handlers[name]; ok {
-		handler := def.Handler
-		if handler == nil {
-			handler = def.Provider()
-			def.Handler = handler
-		}
+	if handlers, ok := bus.handlers[name]; ok {
+		for _, def := range handlers {
+			handler := def.Handler
+			if handler == nil {
+				handler = def.Provider()
+				def.Handler = handler
+			}
 
-		if err = handler.Handle(i); err != nil {
-			return err
+			if err = handler.Handle(i); err != nil {
+				return err
+			}
 		}
 		return
 	}
@@ -82,21 +84,19 @@ func (bus *bus) Handle(i ...interface{}) (err []error) {
 }
 
 func (bus *bus) AddProvider(i interface{}, p Provider) {
-	name := extractName(i)
-	bus.handlers[name] = &Definition{
-		name,
+	bus.Add(&Definition{
+		extractName(i),
 		nil,
 		p,
-	}
+	})
 }
 
 func (bus *bus) AddHandler(i interface{}, h Handler) {
-	name := extractName(i)
-	bus.handlers[name] = &Definition{
-		name,
+	bus.Add(&Definition{
+		extractName(i),
 		h,
 		nil,
-	}
+	})
 }
 
 func checkMethod(r interface{}, methodName string) (p Provider, e error) {
@@ -147,20 +147,20 @@ func (bus *bus) AddRegistry(r interface{}) {
 
 		item := fmt.Sprintf("%s.%s", pkg, method.Name)
 
-		bus.handlers[item] = &Definition{
+		bus.Add(&Definition{
 			Name:     item,
 			Provider: provider,
-		}
+		})
 	}
 }
 
 func (bus *bus) Add(d *Definition) {
-	bus.handlers[d.Name] = d
+	bus.handlers[d.Name] = append(bus.handlers[d.Name], d)
 }
 
 func NewBus() (c Bus) {
 	c = &bus{
-		make(map[string]*Definition),
+		make(map[string][]*Definition),
 		[]Middleware{},
 	}
 

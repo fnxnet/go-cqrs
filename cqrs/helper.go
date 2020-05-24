@@ -3,11 +3,11 @@ package cqrs
 import "reflect"
 
 func extractName(i interface{}) (name string) {
-    name = reflect.TypeOf(i).String()
+	name = reflect.TypeOf(i).String()
 
-    if reflect.ValueOf(i).Kind() == reflect.Ptr{
-        name = name[1:]
-    }
+	if reflect.ValueOf(i).Kind() == reflect.Ptr {
+		name = name[1:]
+	}
 
-    return
+	return
 }

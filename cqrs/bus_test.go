@@ -103,7 +103,20 @@ func TestCommandBus_Add(t *testing.T) {
 
 	assert.Len(t, bus.handlers, 1)
 	assert.Contains(t, bus.handlers, "dummy")
-	assert.NotNil(t, bus.handlers["dummy"].Provider)
+	assert.NotNil(t, bus.handlers["dummy"][0].Provider)
+}
+
+func TestCommandBus_AddMultiple(t *testing.T) {
+	def := &Definition{Name: "dummy", Provider: func() Handler { return &dummyHandler{} }}
+	def2 := &Definition{Name: "dummy", Provider: func() Handler { return &dummyHandler{} }}
+	bus := NewBus().(*bus)
+	bus.Add(def)
+	bus.Add(def2)
+
+	assert.Len(t, bus.handlers, 1)
+	assert.Contains(t, bus.handlers, "dummy")
+	assert.NotNil(t, bus.handlers["dummy"][0].Provider)
+	assert.NotNil(t, bus.handlers["dummy"][1].Provider)
 }
 
 func TestCommandBus_AddHandler(t *testing.T) {
@@ -113,7 +126,7 @@ func TestCommandBus_AddHandler(t *testing.T) {
 
 	assert.Len(t, bus.handlers, 1)
 
-	definition := bus.handlers["cqrs.dummyItem"]
+	definition := bus.handlers["cqrs.dummyItem"][0]
 
 	assert.IsType(t, (*Definition)(nil), definition)
 	assert.NotNil(t, definition.Handler)
@@ -133,7 +146,7 @@ func TestCommandBus_AddProvider(t *testing.T) {
 
 	assert.Len(t, bus.handlers, 1)
 
-	definition := bus.handlers["cqrs.dummyItem"]
+	definition := bus.handlers["cqrs.dummyItem"][0]
 
 	assert.IsType(t, (*Definition)(nil), definition)
 	assert.NotNil(t, definition.Provider)
@@ -149,7 +162,7 @@ func TestCommandBus_AddRegistry(t *testing.T) {
 
 	assert.Len(t, bus.handlers, 2)
 	if assert.Contains(t, bus.handlers, "cqrs.DummyCommand") {
-		definition := bus.handlers["cqrs.DummyCommand"]
+		definition := bus.handlers["cqrs.DummyCommand"][0]
 
 		assert.IsType(t, (*Definition)(nil), definition)
 		assert.NotNil(t, definition.Provider)
@@ -160,7 +173,7 @@ func TestCommandBus_AddRegistry(t *testing.T) {
 	}
 
 	if assert.Contains(t, bus.handlers, "cqrs.DummyCommandProvider") {
-		definition := bus.handlers["cqrs.DummyCommandProvider"]
+		definition := bus.handlers["cqrs.DummyCommandProvider"][0]
 
 		assert.IsType(t, (*Definition)(nil), definition)
 		assert.NotNil(t, definition.Provider)
@@ -211,6 +224,7 @@ func TestCommandBus_HandleNilValue(t *testing.T) {
 func TestCommandBus_HandleSupportedCommand(t *testing.T) {
 	m := &dummyMiddleware{}
 	h := &dummyHandler{}
+	h2 := &dummyHandler{}
 	bus := NewBus().(*bus)
 	pCall := 0
 	bus.Add(&Definition{
@@ -218,6 +232,13 @@ func TestCommandBus_HandleSupportedCommand(t *testing.T) {
 		Provider: func() Handler {
 			pCall++
 			return h
+		},
+	})
+	bus.Add(&Definition{
+		Name: "cqrs.dummyItem",
+		Provider: func() Handler {
+			pCall++
+			return h2
 		},
 	})
 	bus.AddMiddleware(m)
@@ -230,34 +251,40 @@ func TestCommandBus_HandleSupportedCommand(t *testing.T) {
 
 	assert.Nil(t, bus.Handle(item))
 	assert.Equal(t, 1, h.Called)
+	assert.Equal(t, 1, h2.Called)
 	assert.Same(t, item, h.HandledItem)
 	assert.Equal(t, 1, m.called)
-	assert.Equal(t, 1, pCall)
-	assert.NotNil(t, bus.handlers["cqrs.dummyItem"].Handler)
+	assert.Equal(t, 2, pCall)
+	assert.NotNil(t, bus.handlers["cqrs.dummyItem"][0].Handler)
+	assert.NotNil(t, bus.handlers["cqrs.dummyItem"][1].Handler)
 
 	// handle second time and see if same handler called
 	assert.Nil(t, bus.Handle(item))
-	assert.Equal(t, 1, pCall)
+	assert.Equal(t, 2, pCall)
 	assert.Equal(t, 2, h.Called)
+	assert.Equal(t, 2, h2.Called)
 	assert.Equal(t, 2, m.called)
 
 	// handle slice
 	assert.Nil(t, bus.Handle(item, item))
-	assert.Equal(t, 1, pCall)
+	assert.Equal(t, 2, pCall)
 	assert.Equal(t, 4, h.Called)
+	assert.Equal(t, 4, h2.Called)
 	assert.Equal(t, 4, m.called)
 
 	// handle array - should ignore this
 	items := append(make([]interface{}, 0), item, item)
 	assert.Nil(t, bus.Handle(items))
-	assert.Equal(t, 1, pCall)
+	assert.Equal(t, 2, pCall)
 	assert.Equal(t, 4, h.Called)
+	assert.Equal(t, 4, h2.Called)
 	assert.Equal(t, 4, m.called)
 
 	// handle variadic slice - should handle
-	assert.Nil(t, bus.Handle(items[:]...))
-	assert.Equal(t, 1, pCall)
+	assert.Nil(t, bus.Handle(items...))
+	assert.Equal(t, 2, pCall)
 	assert.Equal(t, 6, h.Called)
+	assert.Equal(t, 6, h2.Called)
 	assert.Equal(t, 6, m.called)
 }
 
